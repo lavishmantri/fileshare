@@ -1,26 +1,32 @@
-import React from 'react';
-import logo from './logo.svg';
+import React, { useEffect, useState } from 'react';
 import './App.css';
+import { ConnectPane } from './components/connect-pane/connect-pane';
+import { connectToSocket } from './service/websocket';
 
-function App() {
+function getParamFromURL() {
+  return window.location.pathname.split('/')[1];
+}
+
+export const App = () => {
+  const [path, setPath] = useState('');
+
+  useEffect(() => {
+    const p = getParamFromURL();
+    setPath(p);
+
+    connectToSocket()
+      .then(ws => {
+        console.log('Sending message...');
+        ws.emit('message', 'Hello there!');
+      });
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="app">
+      <header className="App-header">File share</header>
+      <ConnectPane />
     </div>
   );
-}
+};
 
 export default App;
