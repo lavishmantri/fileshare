@@ -1,0 +1,5 @@
+.message-pane {
+  border: 1px solid #000;
+  min-height: 400px;
+  padding: 0 8px;
+}
