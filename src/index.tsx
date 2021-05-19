@@ -1,8 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import './index.css';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import adapter from 'webrtc-adapter';
 import App from './App';
+import './index.css';
 import reportWebVitals from './reportWebVitals';
+
+console.log(adapter.browserDetails);
 
 ReactDOM.render(
   <React.StrictMode>

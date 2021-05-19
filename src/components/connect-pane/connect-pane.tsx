@@ -1,20 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { getConnectedUsers, registerOnUserConnect, registerOnUserDisconnect } from '../../service/websocket';
 import { ProfileIcon } from '../profile-icon/profile-icon';
 import { Row } from '../row/row';
 
-interface ConnectPaneProps {
-  connectedUsers?: any[];
-}
+export const ConnectPane: React.FC = () => {
+  const [connectedUsers, setConnectedUsers] = useState<any>(getConnectedUsers());
 
-export const ConnectPane: React.FC<ConnectPaneProps> = ({ connectedUsers = [] }) => {
+  registerOnUserConnect((data) => {
+    setConnectedUsers([data]);
+  })
+
+  registerOnUserDisconnect(() => setConnectedUsers([]));
+
   return (
     <div>
-      <Row>
-        <ProfileIcon />
-      </Row>
       {connectedUsers.map(usr => (
         <Row>
-          <ProfileIcon />
+          <ProfileIcon txt={usr} />
         </Row>
       ))}
     </div>

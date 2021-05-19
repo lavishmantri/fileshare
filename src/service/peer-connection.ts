@@ -1,3 +1,6 @@
+import { reportError } from '../utils/error';
+import { getSocket } from './websocket';
+
 const STUN_SERVERS = [
   'stun.l.google.com:19302',
   'stun1.l.google.com:19302',
@@ -16,17 +19,33 @@ const STUN_SERVERS = [
   'stun.voipstunt.com',
 ];
 
-export const createPeerConnection = () => new PeerConnection();
+let pConn: PeerConnection;
+
+export const createPeerConnection = () => (pConn = new PeerConnection());
+
+export const getPeerConnection = () => pConn;
 
 class PeerConnection {
-  private conn;
+  public conn;
+  public channel;
 
   constructor() {
     const myPeerConnection = (this.conn = new RTCPeerConnection({
       iceServers: STUN_SERVERS.map(url => ({
-        urls: url,
+        urls: ['stun:stun.I.google.com:19302'],
       })),
     }));
+
+    const channel = (this.channel = myPeerConnection.createDataChannel('file_transfer', {
+      negotiated: true,
+      id: 0,
+    }));
+
+    channel.onopen = () => {
+      channel.send('Hi there!, Channel open');
+    };
+
+    channel.onmessage = evt => console.log('On channel msg: ', evt.data);
 
     myPeerConnection.onicecandidate = this.handleICECandidateEvent;
     myPeerConnection.ontrack = this.handleTrackEvent;
@@ -37,25 +56,94 @@ class PeerConnection {
     myPeerConnection.onsignalingstatechange = this.handleSignalingStateChangeEvent;
   }
 
-  handleICECandidateEvent = () => {
-    console.log('handleICECandidateEvent');
+  handleICECandidateEvent = evt => {
+    console.log('handleICECandidateEvent ', evt);
+
+    if (evt.candidate) {
+      getSocket().emit('new-ice-candidate', {
+        candidate: evt.candidate,
+      });
+    }
   };
-  handleTrackEvent = () => {
-    console.log('handleTrackEvent');
+  handleTrackEvent = track => {
+    console.log('handleTrackEvent ', track);
   };
   handleNegotiationNeededEvent = () => {
     console.log('handleNegotiationNeededEvent');
+
+    this.conn
+      .createOffer()
+      .then(offer => {
+        return this.conn.setLocalDescription(offer);
+      })
+      .then(() => {
+        const socket = getSocket();
+        socket.emit(
+          'connection-offer',
+          {
+            name: socket.id,
+            target: '',
+            sdp: this.conn.localDescription,
+          },
+        );
+      })
+      .catch(err => console.error('Error handled ---- ', err));
   };
-  handleRemoveTrackEvent = () => {
-    console.log('handleRemoveTrackEvent');
+  handleRemoveTrackEvent = evt => {
+    console.log('handleRemoveTrackEvent ', evt);
   };
-  handleICEConnectionStateChangeEvent = () => {
-    console.log('handleICEConnectionStateChangeEvent');
+  handleICEConnectionStateChangeEvent = evt => {
+    console.log('handleICEConnectionStateChangeEvent ', evt);
   };
-  handleICEGatheringStateChangeEvent = () => {
-    console.log('handleICEGatheringStateChangeEvent');
+  handleICEGatheringStateChangeEvent = evt => {
+    console.log('handleICEGatheringStateChangeEvent ', evt);
   };
-  handleSignalingStateChangeEvent = () => {
-    console.log('handleSignalingStateChangeEvent');
+  handleSignalingStateChangeEvent = evt => {
+    console.log('handleSignalingStateChangeEvent ', evt);
   };
 }
+
+interface SessionDescription {
+  type: string;
+  name: string;
+  target: string;
+  sdp: RTCSessionDescription;
+}
+
+interface ICECandidate {
+  type: string;
+  target: string;
+  candidate: string;
+}
+
+export const createOffer = () => {};
+
+const handleConnectionOffer = (msg: any) => {
+  pConn = createPeerConnection();
+  const desc = new RTCSessionDescription(msg.sdp);
+
+  pConn.conn
+    .setRemoteDescription(desc)
+    .then(stream => {
+      console.log('Streaming... ', stream);
+    })
+    .then(() => pConn.conn.createAnswer())
+    .then(answer => pConn.conn.setLocalDescription(answer))
+    .then(() => {
+      const socket = getSocket();
+      socket.emit(
+        'connection-accept',
+        JSON.stringify({
+          name: socket.id,
+          target: '',
+          sdp: pConn.conn.localDescription,
+        }),
+      );
+    })
+    .catch(err => console.error('Error handled ---- ', err));
+};
+
+const handleNewICECandidateMsg = msg => {
+  const candidate = new RTCIceCandidate(msg.candidate);
+  pConn.conn.addIceCandidate(candidate).catch(reportError);
+};

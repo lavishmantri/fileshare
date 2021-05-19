@@ -9,6 +9,7 @@ function getParamFromURL() {
 }
 
 export const App = () => {
+  const [loading, setLoading] = useState(true);
   const [path, setPath] = useState('');
 
   useEffect(() => {
@@ -16,10 +17,15 @@ export const App = () => {
     setPath(p);
 
     connectToSocket({}).then(ws => {
+      setLoading(false);
       console.log('Sending message...');
       ws.emit('message', 'Hello there!');
     });
   }, []);
+
+  if (loading) {
+    return <div>loading...</div>;
+  }
 
   return (
     <div className="app">
