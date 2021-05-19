@@ -36,13 +36,17 @@ class PeerConnection {
       })),
     }));
 
-    const channel = (this.channel = myPeerConnection.createDataChannel('file_transfer', {
-      negotiated: true,
-      id: 0,
-    }));
+    const channel = (this.channel = myPeerConnection.createDataChannel('file_transfer'));
+    channel.binaryType = 'arraybuffer';
 
     channel.onopen = () => {
-      channel.send('Hi there!, Channel open');
+      console.log('Send channel open: ');
+      // channel.send('Hi there!, Channel open');
+    };
+
+    channel.onclose = () => {
+      console.log('Send channel close: ');
+      // channel.send('Hi there!, Channel open');
     };
 
     channel.onmessage = evt => console.log('On channel msg: ', evt.data);

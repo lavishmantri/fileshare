@@ -70,26 +70,49 @@ export const connectToSocket = (cbs: ConnectionCallbacks): Promise<Socket> => {
 
       const desc = new RTCSessionDescription(data.sdp);
 
-      pConn.conn.setRemoteDescription(desc);
-      pConn.conn.addEventListener('datachannel', evt => {
+      pConn.conn
+        .setRemoteDescription(desc)
+        .then(() => pConn.conn.createAnswer())
+        .then(answer => pConn.conn.setLocalDescription(answer))
+        .then(() => {
+          socket.emit('connection-answer', {
+            sdp: pConn.conn.localDescription,
+          });
+        })
+        .catch(err => console.log('Error: ', err));
+
+      pConn.conn.ondatachannel = evt => {
         console.log('Recieve data channel: ', evt);
 
         const receiveChannel = evt.channel;
         receiveChannel.onmessage = data => {
           console.log('onmessage data channel: ', data);
         };
-        receiveChannel.open = () => {
-          console.log('open data channel: ', data);
+        receiveChannel.onopen = () => {
+          console.log('open data channel: ');
         };
         receiveChannel.onclose = () => {
           console.log('onclose data channel: ');
         };
-      });
+      };
+    });
+
+    socket.on('connection-answer', data => {
+      console.log('Connection answer recieved: ', data);
+
+      getPeerConnection()
+        .conn.setRemoteDescription(new RTCSessionDescription(data.sdp))
+        .catch(() => console.log('Error setting session desc for remote'));
     });
 
     socket.on('new-ice-candidate', data => {
       console.log('recieved new ice candidate: ', data);
-      getPeerConnection().conn.addIceCandidate(data.candidate);
+      try {
+        getPeerConnection().conn.addIceCandidate(data.candidate);
+      } catch (e) {
+        console.error('Was trying to add ice candidate but failed\n', e);
+      }
+      
     });
   });
 };
